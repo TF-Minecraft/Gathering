@@ -6,9 +6,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.entity.Player;
 
-import me.Plugins.TLibs.Objects.API.SubAPI.StringFormatter;
-import net.tfminecraft.RPCharacters.Objects.Attributes.AttributeModifier;
-import net.tfminecraft.RPCharacters.Objects.RPCharacter;
+import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
+import net.tfminecraft.rpcharacters.objects.attributes.AttributeModifier;
+import net.tfminecraft.rpcharacters.objects.RPCharacter;
 import net.tfminecraft.gathering.cache.Cache;
 import net.tfminecraft.gathering.loader.SpotTypeLoader;
 import net.tfminecraft.gathering.manager.SpotManager;

@@ -12,7 +12,10 @@ import java.util.Set;
 
 import java.util.concurrent.ThreadLocalRandom;
 
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Biome;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -186,10 +189,12 @@ public class SpotTypeLoader {
         Set<Biome> out = new HashSet<>();
         for (String name : names) {
             if (name == null || name.isBlank()) continue;
-            try {
-                out.add(Biome.valueOf(name.trim().toUpperCase(Locale.ROOT)));
-            } catch (IllegalArgumentException ex) {
+            NamespacedKey key = NamespacedKey.fromString(name.trim().toLowerCase(Locale.ROOT));
+            Biome biome = key == null ? null : RegistryAccess.registryAccess().getRegistry(RegistryKey.BIOME).get(key);
+            if (biome == null) {
                 Gathering.plugin.getLogger().warning("Unknown biome in spot-types: " + name);
+            } else {
+                out.add(biome);
             }
         }
         return out;
