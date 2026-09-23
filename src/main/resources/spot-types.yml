@@ -1,0 +1,15 @@
+forest-herbs:
+  biome: [FOREST, BIRCH_FOREST, DARK_FOREST]
+  altitude-min: 60
+  altitude-max: 300
+  spawn-block: GRASS_BLOCK
+  max-active: 3
+  cooldown-minutes: 10
+  profession-id: herbalism
+  categories:
+    - id: common-herbs
+      weight: 8
+      drops: 1-2
+    - id: rare-herbs
+      weight: 2
+      drops: 1

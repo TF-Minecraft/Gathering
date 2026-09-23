@@ -1,0 +1,18 @@
+main: net.tfminecraft.gathering.Gathering
+api-version: 1.20
+name: Gathering
+version: 0.1.0-ALPHA
+author: Drefvelin
+
+depend: [TLibs, RPCharacters]
+softdepend: [MMOCore]
+
+commands:
+  gathering:
+    usage: /<command> <reload|clearcache|status|forcespawn|adminmode>
+    description: Gathering admin commands
+    permission: gathering.admin
+
+permissions:
+  gathering.admin:
+    default: op

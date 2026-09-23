@@ -1,0 +1,38 @@
+spawn-interval-minutes: 10
+chunk-cooldown-minutes: 4320
+spawn-attempts-per-tick: 3
+probe-column-attempts: 12
+
+worlds:
+  world:
+    chunk-x-min: 0
+    chunk-x-max: 400
+    chunk-z-min: 0
+    chunk-z-max: 400
+
+passive-discovery:
+  enabled: true
+  interval-seconds: 12
+  radius: 6.0
+  base-chance: 0.06
+  message: '&7*You notice something glinting nearby...*'
+
+attributes:
+  wisdom-weight: 0.02
+  intelligence-weight: 0.015
+
+profession:
+  enabled: true
+  id: herbalism
+  level-weight: 0.01
+
+particles:
+  interval-ticks: 10
+  ring-radius: 0.45
+
+gather-fx:
+  burst-particles: false
+  kick-velocity-min: 0.42
+  kick-velocity-max: 0.78
+  kick-horizontal-min: 0.015
+  kick-horizontal-max: 0.045

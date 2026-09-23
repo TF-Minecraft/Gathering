@@ -1,0 +1,9 @@
+common-herbs:
+  drops:
+    - "v.emerald 1-2 5"
+    - "v.emerald 1-3 3"
+
+rare-herbs:
+  drops:
+    - "v.emerald 2-4 4"
+    - "v.diamond 1-1 1"
