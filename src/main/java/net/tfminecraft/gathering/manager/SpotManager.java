@@ -241,7 +241,7 @@ public final class SpotManager implements Listener {
         long now = System.currentTimeMillis();
         int count = 0;
         for (Long until : chunkCooldownUntil.values()) {
-            if (until != null && until > now) count++;
+            if (until > now) count++;
         }
         return count;
     }

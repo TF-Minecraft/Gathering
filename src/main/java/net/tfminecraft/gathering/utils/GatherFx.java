@@ -154,13 +154,17 @@ public final class GatherFx {
     private static void kickUp(Item ent, ThreadLocalRandom rng) {
         double vx = randomSigned(rng, Cache.gatherKickHorizontalMin, Cache.gatherKickHorizontalMax);
         double vz = randomSigned(rng, Cache.gatherKickHorizontalMin, Cache.gatherKickHorizontalMax);
-        double vy = rng.nextDouble(Cache.gatherKickVelocityMin, Cache.gatherKickVelocityMax);
+        double vy = randomBetween(rng, Cache.gatherKickVelocityMin, Cache.gatherKickVelocityMax);
         ent.setVelocity(new Vector(vx, vy, vz));
     }
 
     private static double randomSigned(ThreadLocalRandom rng, double min, double max) {
-        double v = rng.nextDouble(min, max);
+        double v = randomBetween(rng, min, max);
         return rng.nextBoolean() ? v : -v;
+    }
+
+    private static double randomBetween(ThreadLocalRandom rng, double min, double max) {
+        return min == max ? min : rng.nextDouble(min, max);
     }
 
     private static void startCritTrail(Entity entity, int maxTicks) {

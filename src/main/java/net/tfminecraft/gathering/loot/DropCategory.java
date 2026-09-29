@@ -86,9 +86,10 @@ public final class DropCategory {
         if (total <= 0.0) return null;
         double r = rng.nextDouble() * total;
         double acc = 0.0;
-        for (Entry e : entries) {
+        for (int i = 0; i < entries.size() - 1; i++) {
+            Entry e = entries.get(i);
             acc += Math.max(0.0, e.weight);
-            if (r <= acc) return e;
+            if (r < acc) return e;
         }
         return entries.get(entries.size() - 1);
     }

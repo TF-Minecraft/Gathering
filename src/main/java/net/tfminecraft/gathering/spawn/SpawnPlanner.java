@@ -64,7 +64,6 @@ public final class SpawnPlanner {
             if (!above.getType().isAir() || !above2.getType().isAir()) continue;
 
             Material surfaceMat = surface.getType();
-            if (surfaceMat == Material.WATER || surfaceMat == Material.LAVA) continue;
             if (!type.acceptsSpawnBlock(surfaceMat)) continue;
             if (!type.acceptsAltitude(y)) continue;
 
