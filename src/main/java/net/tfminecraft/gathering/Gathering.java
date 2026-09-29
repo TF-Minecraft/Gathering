@@ -43,9 +43,7 @@ public class Gathering extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (spotManager != null) {
-            spotManager.shutdown();
-        }
+        spotManager.shutdown();
         getLogger().info("Gathering disabled.");
     }
 

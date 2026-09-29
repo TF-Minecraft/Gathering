@@ -136,9 +136,8 @@ public class SpotTypeLoader {
         String professionId = sec.getString("profession-id");
 
         List<CategoryWeight> categories = new ArrayList<>();
-        List<?> rawCategories = sec.getMapList("categories");
-        for (Object raw : rawCategories) {
-            if (!(raw instanceof java.util.Map<?, ?> map)) continue;
+        List<java.util.Map<?, ?>> rawCategories = sec.getMapList("categories");
+        for (java.util.Map<?, ?> map : rawCategories) {
             Object catId = map.get("id");
             Object weight = map.get("weight");
             Object drops = map.get("drops");
@@ -185,10 +184,10 @@ public class SpotTypeLoader {
     }
 
     private Set<Biome> parseBiomes(List<String> names) {
-        if (names == null || names.isEmpty()) return Collections.emptySet();
+        if (names.isEmpty()) return Collections.emptySet();
         Set<Biome> out = new HashSet<>();
         for (String name : names) {
-            if (name == null || name.isBlank()) continue;
+            if (name.isBlank()) continue;
             NamespacedKey key = NamespacedKey.fromString(name.trim().toLowerCase(Locale.ROOT));
             Biome biome = key == null ? null : RegistryAccess.registryAccess().getRegistry(RegistryKey.BIOME).get(key);
             if (biome == null) {

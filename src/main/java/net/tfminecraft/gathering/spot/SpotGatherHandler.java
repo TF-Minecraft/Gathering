@@ -49,7 +49,7 @@ public final class SpotGatherHandler implements Listener {
         event.setCancelled(true);
 
         List<ItemStack> rewards = rollRewards(spot);
-        if (rewards == null || rewards.isEmpty()) {
+        if (rewards == null) {
             event.getPlayer().sendMessage("§cNothing to gather here.");
             return;
         }
@@ -99,9 +99,10 @@ public final class SpotGatherHandler implements Listener {
 
         double r = ThreadLocalRandom.current().nextDouble() * total;
         double acc = 0.0;
-        for (SpotTypeLoader.CategoryWeight cw : type.categories) {
+        for (int i = 0; i < type.categories.size() - 1; i++) {
+            SpotTypeLoader.CategoryWeight cw = type.categories.get(i);
             acc += cw.weight;
-            if (r <= acc) return cw;
+            if (r < acc) return cw;
         }
         return type.categories.get(type.categories.size() - 1);
     }

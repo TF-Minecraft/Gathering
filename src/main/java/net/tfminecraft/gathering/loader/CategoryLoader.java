@@ -38,7 +38,7 @@ public class CategoryLoader {
 
         for (String key : config.getKeys(false)) {
             List<String> drops = config.getStringList(key + ".drops");
-            if (drops == null || drops.isEmpty()) {
+            if (drops.isEmpty()) {
                 drops = config.getStringList(key);
             }
             DropCategory category = new DropCategory(key, drops);
