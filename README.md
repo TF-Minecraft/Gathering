@@ -35,10 +35,12 @@ Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/
 ## Tests
 
 With Java 21 and the pinned plugin dependencies installed, run `mvn clean verify`.
-Tests use JUnit, Mockito, and MockBukkit; JaCoCo reports are written to
-`target/site/jacoco/index.html` and uploaded by CI. Tests run locally without a live
-Minecraft server. Verification requires 100% line, branch, and instruction
+Tests use JUnit 5, Mockito, and MockBukkit. Surefire test results are in
+`target/surefire-reports/`; JaCoCo HTML and XML reports are in `target/site/jacoco/`.
+CI uploads both. Verification requires 100% line, branch, and instruction
 coverage of production code, with no coverage exclusions.
+Live world spawning, client particles, and the complete server plugin stack
+require separate in-game checks.
 
 ## License
 
