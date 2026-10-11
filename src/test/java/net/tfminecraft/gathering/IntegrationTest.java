@@ -17,35 +17,103 @@ import net.tfminecraft.rpcharacters.managers.PlayerManager;
 import net.tfminecraft.rpcharacters.objects.*;
 import net.tfminecraft.rpcharacters.objects.attributes.AttributeModifier;
 import net.tfminecraft.tlibs.TLibs;
+import net.tfminecraft.tlibs.character.CharacterIdentity;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockito.MockedStatic;
 
 class IntegrationTest extends GatheringTestSupport {
   @Test
-  void characterBridgeHandlesAbsentInactiveAndMalformedIdentities() {
+  void characterBridgeWaitsForAProviderAndReadySessionBeforeReadingRpcAttributes() {
     Player player = server.addPlayer();
     try (MockedStatic<PlayerManager> players = mockStatic(PlayerManager.class)) {
       assertNull(CharacterBridge.getActiveCharacter(null));
+      assertNull(CharacterBridge.getActiveCharacterUuid(null));
       assertNull(CharacterBridge.getActiveCharacter(player));
       assertNull(CharacterBridge.getActiveCharacterUuid(player));
+      CharacterIdentity identity = mock(CharacterIdentity.class);
+      when(identity.currentSession(player)).thenReturn(Optional.empty());
+      server.getServicesManager()
+          .register(CharacterIdentity.class, identity, plugin, ServicePriority.Normal);
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      assertNull(CharacterBridge.getActiveCharacterUuid(player));
+      players.verifyNoInteractions();
+    }
+  }
+
+  @Test
+  void characterBridgeUsesSharedUuidAndOnlyReturnsTheMatchingRpcAttributeModel() {
+    Player player = server.addPlayer();
+    UUID id = UUID.randomUUID();
+    CharacterIdentity identity = mock(CharacterIdentity.class);
+    when(identity.currentSession(player))
+        .thenReturn(Optional.of(new CharacterSession(new CharacterRef(player.getUniqueId(), id), 1)));
+    server.getServicesManager()
+        .register(CharacterIdentity.class, identity, plugin, ServicePriority.Normal);
+    try (MockedStatic<PlayerManager> players = mockStatic(PlayerManager.class)) {
+      assertEquals(id, CharacterBridge.getActiveCharacterUuid(player));
+      players.verifyNoInteractions();
+      assertNull(CharacterBridge.getActiveCharacter(player));
       PlayerData data = mock(PlayerData.class);
       players.when(() -> PlayerManager.get(player)).thenReturn(data);
       assertNull(CharacterBridge.getActiveCharacter(player));
-      when(data.hasActiveCharacter()).thenReturn(true);
       RPCharacter character = mock(RPCharacter.class);
       when(data.getActiveCharacter()).thenReturn(character);
-      assertSame(character, CharacterBridge.getActiveCharacter(player));
-      assertNull(CharacterBridge.getActiveCharacterUuid(player));
-      when(character.getId()).thenReturn("invalid");
-      assertNull(CharacterBridge.getActiveCharacterUuid(player));
-      UUID id = UUID.randomUUID();
-      when(character.getId()).thenReturn(id.toString());
+      assertNull(CharacterBridge.getActiveCharacter(player));
       assertEquals(id, CharacterBridge.getActiveCharacterUuid(player));
+      when(character.getId()).thenReturn("invalid");
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      assertEquals(id, CharacterBridge.getActiveCharacterUuid(player));
+      when(character.getId()).thenReturn(UUID.randomUUID().toString());
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      when(character.getId()).thenReturn(id.toString().toUpperCase(Locale.ROOT));
+      assertSame(character, CharacterBridge.getActiveCharacter(player));
+      assertEquals(id, CharacterBridge.getActiveCharacterUuid(player));
+    }
+  }
+
+  @Test
+  void characterBridgeRechecksSessionsAndProviderRegistrationWithoutCachingOldIdentity() {
+    Player player = server.addPlayer();
+    UUID aliceId = UUID.randomUUID(), bobId = UUID.randomUUID();
+    CharacterIdentity identity = mock(CharacterIdentity.class);
+    server.getServicesManager()
+        .register(CharacterIdentity.class, identity, plugin, ServicePriority.Normal);
+    RPCharacter alice = mock(RPCharacter.class), bob = mock(RPCharacter.class);
+    when(alice.getId()).thenReturn(aliceId.toString());
+    when(bob.getId()).thenReturn(bobId.toString());
+    PlayerData data = mock(PlayerData.class);
+    when(data.getActiveCharacter()).thenReturn(alice);
+    try (MockedStatic<PlayerManager> players = mockStatic(PlayerManager.class)) {
+      players.when(() -> PlayerManager.get(player)).thenReturn(data);
+      when(identity.currentSession(player))
+          .thenReturn(Optional.of(new CharacterSession(new CharacterRef(player.getUniqueId(), aliceId), 1)));
+      assertSame(alice, CharacterBridge.getActiveCharacter(player));
+      when(identity.currentSession(player))
+          .thenReturn(Optional.of(new CharacterSession(new CharacterRef(player.getUniqueId(), bobId), 2)));
+      assertEquals(bobId, CharacterBridge.getActiveCharacterUuid(player));
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      when(data.getActiveCharacter()).thenReturn(bob);
+      assertSame(bob, CharacterBridge.getActiveCharacter(player));
+      when(identity.currentSession(player))
+          .thenReturn(Optional.of(new CharacterSession(new CharacterRef(player.getUniqueId(), aliceId), 3)));
+      assertEquals(aliceId, CharacterBridge.getActiveCharacterUuid(player));
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      when(data.getActiveCharacter()).thenReturn(alice);
+      assertSame(alice, CharacterBridge.getActiveCharacter(player));
+      when(identity.currentSession(player)).thenReturn(Optional.empty());
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      assertNull(CharacterBridge.getActiveCharacterUuid(player));
+      server.getServicesManager().unregister(CharacterIdentity.class, identity);
+      assertNull(CharacterBridge.getActiveCharacter(player));
+      assertNull(CharacterBridge.getActiveCharacterUuid(player));
     }
   }
 
