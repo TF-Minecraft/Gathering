@@ -1,10 +1,11 @@
-# Spots only spawn inside these chunk bounds.
+# Spots only spawn naturally in these worlds, inside these chunk bounds.
+# TFMC_Map is 6400 x 6400 blocks, so chunks 0-399.
 worlds:
-  world:
+  TFMC_Map:
     chunk-x-min: 0
-    chunk-x-max: 400
+    chunk-x-max: 399
     chunk-z-min: 0
-    chunk-z-max: 400
+    chunk-z-max: 399
 
 # /gather turns gathering mode on and off. It costs Mental Points (RPCharacters focus):
 # drain-amount on entry, then again every drain-interval-seconds. Running out ends the mode.
