@@ -9,6 +9,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import net.tfminecraft.gathering.loader.*;
 import net.tfminecraft.gathering.loot.DropCategory;
 import net.tfminecraft.gathering.manager.*;
+import net.tfminecraft.gathering.mode.GatheringModeService;
 import net.tfminecraft.gathering.spot.*;
 import net.tfminecraft.gathering.utils.*;
 import org.bukkit.*;
@@ -30,11 +31,11 @@ class GatherInteractionTest extends GatheringTestSupport {
         .put(
             "herb",
             new SpotTypeLoader.SpotTypeDefinition(
-                "herb", Set.of(), null, null, null, null, 1, 0, null, categories));
+                "herb", Set.of(), null, null, null, null, 1, null, categories));
   }
 
   @Test
-  void interactionGuardsCharacterDiscoveryAndUnavailableRewards() {
+  void interactionGuardsGatheringModeAndUnavailableRewards() {
     Player player = server.addPlayer();
     Block block = player.getWorld().getBlockAt(1, 64, 1);
     block.setType(Material.STONE);
@@ -43,6 +44,7 @@ class GatherInteractionTest extends GatheringTestSupport {
     SpotGatherHandler listener = new SpotGatherHandler();
     UUID character = UUID.randomUUID();
     try (MockedStatic<CharacterBridge> bridge = mockStatic(CharacterBridge.class);
+        MockedStatic<FocusBridge> focus = mockStatic(FocusBridge.class);
         MockedStatic<ItemResolver> items = mockStatic(ItemResolver.class)) {
       listener.onInteract(event(player, block, Action.LEFT_CLICK_BLOCK, EquipmentSlot.HAND));
       listener.onInteract(event(player, block, Action.RIGHT_CLICK_BLOCK, EquipmentSlot.OFF_HAND));
@@ -55,10 +57,11 @@ class GatherInteractionTest extends GatheringTestSupport {
       listener.onInteract(absent);
       assertFalse(absent.isCancelled());
       bridge.when(() -> CharacterBridge.getActiveCharacterUuid(player)).thenReturn(character);
-      var hidden = event(player, block, Action.RIGHT_CLICK_BLOCK, EquipmentSlot.HAND);
-      listener.onInteract(hidden);
-      assertFalse(hidden.isCancelled());
-      spot.markDiscovered(character);
+      focus.when(() -> FocusBridge.trySpend(eq(player), anyInt())).thenReturn(true);
+      var outsideMode = event(player, block, Action.RIGHT_CLICK_BLOCK, EquipmentSlot.HAND);
+      listener.onInteract(outsideMode);
+      assertFalse(outsideMode.isCancelled());
+      assertEquals(GatheringModeService.EnterResult.ENTERED, mode.enter(player));
       var missing = event(player, block, Action.RIGHT_CLICK_BLOCK, EquipmentSlot.HAND);
       listener.onInteract(missing);
       assertTrue(missing.isCancelled());
@@ -78,7 +81,7 @@ class GatherInteractionTest extends GatheringTestSupport {
   }
 
   @Test
-  void successfulGatherAwardsEffectsRemovesSpotAndStartsCooldown() {
+  void successfulGatherAwardsEffectsRemovesSpotAndDepletesChunk() {
     Player player = server.addPlayer();
     Block block = player.getWorld().getBlockAt(1, 64, 1);
     SpotManager manager = new SpotManager();
@@ -89,7 +92,6 @@ class GatherInteractionTest extends GatheringTestSupport {
     AdminModeService.get().enable(player);
     categories(List.of(new SpotTypeLoader.CategoryWeight("drops", 1, 1, 1)));
     CategoryLoader.get().put("drops", new DropCategory("drops", List.of("STONE 2-2 1")));
-    net.tfminecraft.gathering.cache.Cache.chunkCooldownMinutes = 10;
     try (MockedStatic<ItemResolver> resolver = mockStatic(ItemResolver.class);
         MockedStatic<GatherFx> effects = mockStatic(GatherFx.class)) {
       ItemStack reward = new ItemStack(Material.STONE, 2);
@@ -98,7 +100,11 @@ class GatherInteractionTest extends GatheringTestSupport {
       new SpotGatherHandler().onInteract(event);
       assertTrue(event.isCancelled());
       assertEquals(0, manager.getActiveSpotCount());
-      assertTrue(manager.isChunkOnCooldown(new ChunkKey(player.getWorld().getName(), 0, 0)));
+      assertEquals(
+          .5,
+          manager.freshness(
+              new ChunkKey(player.getWorld().getName(), 0, 0), System.currentTimeMillis()),
+          1e-6);
       effects.verify(
           () ->
               GatherFx.playGather(
@@ -116,6 +122,7 @@ class GatherInteractionTest extends GatheringTestSupport {
           .onInteract(event(player, block, Action.RIGHT_CLICK_BLOCK, EquipmentSlot.HAND));
       effects.verify(() -> GatherFx.dropAtPlayer(player, List.of(reward)));
       verify(mocked).remove(missing);
+      verify(mocked).recordHarvest(eq(new ChunkKey("missing", 0, 0)), anyLong());
       GatheringSpot unloading = mock(GatheringSpot.class);
       when(unloading.getSpotTypeId()).thenReturn("herb");
       when(unloading.getGatherEffectLocation()).thenReturn(player.getLocation());

@@ -2,7 +2,6 @@ package net.tfminecraft.gathering.spot;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Location;
@@ -22,7 +21,6 @@ import net.tfminecraft.gathering.loot.DropCategory;
 import net.tfminecraft.gathering.manager.AdminModeService;
 import net.tfminecraft.gathering.manager.ChunkKey;
 import net.tfminecraft.gathering.manager.SpotManager;
-import net.tfminecraft.gathering.utils.CharacterBridge;
 import net.tfminecraft.gathering.utils.GatherFx;
 import net.tfminecraft.gathering.utils.ItemResolver;
 
@@ -39,11 +37,8 @@ public final class SpotGatherHandler implements Listener {
         if (spot == null) return;
 
         var player = event.getPlayer();
-        boolean adminMode = AdminModeService.get().isEnabled(player);
-        if (!adminMode) {
-            UUID charUuid = CharacterBridge.getActiveCharacterUuid(player);
-            if (charUuid == null) return;
-            if (!spot.isDiscoveredBy(charUuid)) return;
+        if (!AdminModeService.get().isEnabled(player) && !Gathering.plugin.getModeService().isActive(player)) {
+            return;
         }
 
         event.setCancelled(true);
@@ -65,7 +60,7 @@ public final class SpotGatherHandler implements Listener {
 
         ChunkKey key = new ChunkKey(spot.getWorldName(), spot.getChunkX(), spot.getChunkZ());
         manager.remove(spot);
-        manager.setChunkCooldown(key);
+        manager.recordHarvest(key, System.currentTimeMillis());
     }
 
     private List<ItemStack> rollRewards(GatheringSpot spot) {

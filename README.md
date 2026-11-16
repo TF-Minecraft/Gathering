@@ -1,28 +1,31 @@
 # Gathering
 
-> Scatter hidden gathering spots across the world for TF-Minecraft characters to discover and harvest.
+> Search the land for gathering spots: an active, Mental Point–driven activity for TF-Minecraft characters.
 
-Gathering spawns hidden resource spots across configured regions of the world.
-Roleplay characters notice nearby spots over time, guided by their attributes and
-profession, and can then harvest them for configurable, weighted drops.
+Players turn on gathering mode with `/gather`. While it is on, it costs Mental Points
+(RPCharacters focus), and gathering spots appear around them. Ground that has not been
+worked recently turns up spots more often. Anyone in gathering mode can see and harvest
+the spots nearby for configurable, weighted drops.
 
 ## Features
 
-- **World spawning** — spots appear periodically in random chunks within configured
-  world bounds, filtered by biome, altitude, and surface block.
-- **Character discovery** — each RPCharacters character discovers spots separately,
-  with a chance improved by wisdom, intelligence, and an optional MMOCore profession
-  level.
-- **Visible only once found** — discovered spots are marked by a particle ring that
-  only that character can see.
+- **Gathering mode** — `/gather` toggles it. It charges Mental Points on entry and on a
+  fixed interval, and ends when the player turns it off or runs out.
+- **Spawning around gatherers** — spots appear near players in the mode, only in chunks
+  that are already loaded, filtered by biome, altitude, surface block, and optionally
+  SimpleFactions province. Wisdom and intelligence raise the spawn chance.
+- **Shared spots** — every player in gathering mode sees the particle rings, and the
+  first to harvest a spot gets its drops. A cap per area keeps groups from multiplying
+  output.
+- **Chunk freshness** — each harvest depletes its chunk, and depletion fades with a
+  configurable half-life, so worked-over areas spawn less until they recover.
 - **Weighted drops** — spot types roll weighted drop categories, and each category
   rolls weighted TLibs item paths with configurable amounts.
-- **Chunk cooldowns** — a harvested chunk rests before it can host another spot, and
-  chunks with no valid surface are excluded from future spawning.
+- **Temporary spots** — spots live in memory and disappear when nobody gathering is
+  near them, when they get old, or when their chunk unloads. Only chunk depletion is
+  saved.
 - **Administrator tools** — reload configuration, inspect status, force a spawn,
-  clear excluded chunks, and use an admin mode that reveals every spot.
-- **Persistent state** — active spots, character discoveries, chunk cooldowns, and
-  excluded chunks survive server restarts.
+  check or reset chunk freshness, and use an admin mode that reveals every spot.
 
 Originally created by [Drefvelin](https://github.com/Drefvelin).
 

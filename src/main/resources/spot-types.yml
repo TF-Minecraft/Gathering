@@ -1,11 +1,15 @@
+# Each spot type lists where it can appear and what it drops.
+#   biome / altitude-min / altitude-max / spawn-block: surface rules (all optional)
+#   particle-dust: block used for the particle ring (defaults to the surface block)
+#   spawn-weight: relative chance when several types fit the same spot (default 1, 0 = never)
+#   provinces: SimpleFactions province ids; when set, the type only spawns in those provinces
+#   categories: weighted drop categories from categories.yml, with drops as N or min-max
 forest-herbs:
   biome: [FOREST, BIRCH_FOREST, DARK_FOREST]
   altitude-min: 60
   altitude-max: 300
   spawn-block: GRASS_BLOCK
-  max-active: 3
-  cooldown-minutes: 10
-  profession-id: herbalism
+  spawn-weight: 1
   categories:
     - id: common-herbs
       weight: 8

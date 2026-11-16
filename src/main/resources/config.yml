@@ -1,30 +1,63 @@
-spawn-interval-minutes: 10
-chunk-cooldown-minutes: 4320
-spawn-attempts-per-tick: 3
-probe-column-attempts: 12
-
+# Spots only spawn naturally in these worlds, inside these chunk bounds.
+# TFMC_Map is 6400 x 6400 blocks, so chunks 0-399.
 worlds:
-  world:
+  TFMC_Map:
     chunk-x-min: 0
-    chunk-x-max: 400
+    chunk-x-max: 399
     chunk-z-min: 0
-    chunk-z-max: 400
+    chunk-z-max: 399
 
-passive-discovery:
-  enabled: true
-  interval-seconds: 12
-  radius: 6.0
-  base-chance: 0.06
-  message: '&7*You notice something glinting nearby...*'
+# /gather turns gathering mode on and off. It costs Mental Points (RPCharacters focus):
+# drain-amount on entry, then again every drain-interval-seconds. Running out ends the mode.
+mode:
+  drain-amount: 1
+  drain-interval-seconds: 90
+  # Boss bar shown while gathering, filled to the share of max Mental Points.
+  # {mp} = current Mental Points. Empty to disable.
+  status-bar: '&7Gathering &8· &e{mp} MP'
+  messages:
+    enter: '&7You begin searching your surroundings carefully.'
+    leave: '&7You stop searching.'
+    out-of-focus: '&7Your focus fades; you stop searching.'
+    no-focus: '&cYou are too unfocused to search.'
+    no-character: '&cYou need an active character to gather.'
 
-attributes:
-  wisdom-weight: 0.02
-  intelligence-weight: 0.015
+# Every interval-seconds, each gatherer may get one spot between min-radius and max-radius
+# blocks away, within max-vertical blocks of their height, in an already-loaded chunk.
+spawn:
+  interval-seconds: 20
+  min-radius: 8
+  max-radius: 32
+  max-vertical: 16
+  min-spacing: 6
+  location-attempts: 8
+  # Spots allowed within max-radius of a gatherer: cap-base, +cap-per-extra-gatherer for each
+  # other gatherer within max-radius, never more than cap-max.
+  cap-base: 3
+  cap-per-extra-gatherer: 1
+  cap-max: 6
+  # Chance per interval = base-chance + wisdom * wisdom-weight + intelligence * intelligence-weight,
+  # capped at max-chance.
+  base-chance: 0.30
+  max-chance: 0.85
+  wisdom-weight: 0.010
+  intelligence-weight: 0.0075
 
-profession:
-  enabled: true
-  id: herbalism
-  level-weight: 0.01
+# Spots are not saved. Anyone in gathering mode can see and harvest them.
+spot:
+  lifetime-minutes: 15
+  # A spot disappears once no gatherer has been within keepalive-radius for orphan-grace-seconds.
+  keepalive-radius: 48
+  orphan-grace-seconds: 60
+
+# Worked-over chunks spawn less. Each harvest adds per-harvest depletion (each spawn adds
+# per-spawn), which halves every half-life-hours. A chunk is accepted with probability
+# 1 / (1 + depletion * strength).
+freshness:
+  per-harvest: 1.0
+  per-spawn: 0.0
+  half-life-hours: 24
+  strength: 1.0
 
 particles:
   interval-ticks: 10

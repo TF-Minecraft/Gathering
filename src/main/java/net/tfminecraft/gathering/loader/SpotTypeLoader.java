@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeSet;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -23,6 +24,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.gathering.Gathering;
+import net.tfminecraft.gathering.utils.Provinces;
 
 public class SpotTypeLoader {
 
@@ -52,24 +54,35 @@ public class SpotTypeLoader {
         public final Integer altitudeMax;
         public final Material spawnBlock;
         public final Material particleDust;
-        public final int maxActive;
-        public final int cooldownMinutes;
-        public final String professionId;
+        public final double spawnWeight;
+        /**
+         * SimpleFactions province ids this type is limited to. Null means anywhere; an empty set (a list
+         * with no valid ids) means nowhere, so a mistyped list never unlocks a type everywhere.
+         */
+        public final Set<Integer> provinces;
         public final List<CategoryWeight> categories;
 
         public SpotTypeDefinition(String id, Set<Biome> biomes, Integer altitudeMin, Integer altitudeMax,
-                Material spawnBlock, Material particleDust, int maxActive, int cooldownMinutes,
-                String professionId, List<CategoryWeight> categories) {
+                Material spawnBlock, Material particleDust, double spawnWeight, Set<Integer> provinces,
+                List<CategoryWeight> categories) {
             this.id = id;
             this.biomes = biomes;
             this.altitudeMin = altitudeMin;
             this.altitudeMax = altitudeMax;
             this.spawnBlock = spawnBlock;
             this.particleDust = particleDust;
-            this.maxActive = maxActive;
-            this.cooldownMinutes = cooldownMinutes;
-            this.professionId = professionId;
+            this.spawnWeight = Math.max(0.0, spawnWeight);
+            this.provinces = provinces;
             this.categories = categories;
+        }
+
+        public boolean requiresProvince() {
+            return provinces != null;
+        }
+
+        public boolean acceptsProvince(int provinceId) {
+            if (provinces == null) return true;
+            return provinceId != Provinces.UNKNOWN && provinces.contains(provinceId);
         }
 
         public boolean acceptsBiome(Biome biome) {
@@ -109,6 +122,9 @@ public class SpotTypeLoader {
         return new ArrayList<>(oList.values());
     }
 
+    /** Per-type keys from the pre-gathering-mode format that no longer do anything. */
+    static final List<String> REMOVED_KEYS = List.of("profession-id", "max-active", "cooldown-minutes");
+
     public void load(File configFile) {
         clear();
         FileConfiguration config = new YamlConfiguration();
@@ -118,10 +134,18 @@ public class SpotTypeLoader {
             e.printStackTrace();
         }
 
+        Set<String> removed = new TreeSet<>();
         for (String key : config.getKeys(false)) {
             ConfigurationSection sec = config.getConfigurationSection(key);
             if (sec == null) continue;
+            for (String old : REMOVED_KEYS) {
+                if (sec.contains(old)) removed.add(old);
+            }
             oList.put(key, parse(key, sec));
+        }
+        if (!removed.isEmpty()) {
+            Gathering.plugin.getLogger().warning(configFile.getName() + ": ignoring spot type settings removed by"
+                    + " gathering mode: " + String.join(", ", removed));
         }
     }
 
@@ -131,9 +155,8 @@ public class SpotTypeLoader {
         Integer altMax = sec.contains("altitude-max") ? sec.getInt("altitude-max") : null;
         Material spawnBlock = parseMaterial(sec.getString("spawn-block"));
         Material particleDust = parseMaterial(sec.getString("particle-dust"));
-        int maxActive = Math.max(1, sec.getInt("max-active", 3));
-        int cooldownMinutes = Math.max(0, sec.getInt("cooldown-minutes", 10));
-        String professionId = sec.getString("profession-id");
+        double spawnWeight = sec.getDouble("spawn-weight", 1.0);
+        Set<Integer> provinces = parseProvinces(id, sec.get("provinces"));
 
         List<CategoryWeight> categories = new ArrayList<>();
         List<java.util.Map<?, ?>> rawCategories = sec.getMapList("categories");
@@ -156,7 +179,30 @@ public class SpotTypeLoader {
         }
 
         return new SpotTypeDefinition(id, biomes, altMin, altMax, spawnBlock, particleDust,
-                maxActive, cooldownMinutes, professionId, Collections.unmodifiableList(categories));
+                spawnWeight, provinces, Collections.unmodifiableList(categories));
+    }
+
+    private Set<Integer> parseProvinces(String typeId, Object raw) {
+        List<?> entries = raw instanceof List<?> list ? list : raw == null ? List.of() : List.of(raw);
+        if (entries.isEmpty()) return null;
+        Set<Integer> out = new HashSet<>();
+        for (Object entry : entries) {
+            if (entry instanceof Number n) {
+                out.add(n.intValue());
+                continue;
+            }
+            try {
+                out.add(Integer.parseInt(String.valueOf(entry).trim()));
+            } catch (NumberFormatException ex) {
+                Gathering.plugin.getLogger().warning("Bad province id in spot type " + typeId
+                        + " (use numeric ids): " + entry);
+            }
+        }
+        if (out.isEmpty()) {
+            Gathering.plugin.getLogger().warning("Spot type " + typeId + " lists no valid province ids;"
+                    + " it will not spawn anywhere.");
+        }
+        return Collections.unmodifiableSet(out);
     }
 
     private int[] parseDropRange(String raw) {

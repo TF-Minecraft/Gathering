@@ -17,9 +17,17 @@
         <maven.compiler.proc>full</maven.compiler.proc>
         <rpcharacters.version>2.16.0</rpcharacters.version>
         <tlibs.version>2.3.0</tlibs.version>
+        <simplefactions.version>4.7.0</simplefactions.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <!-- RPCharacters' static initialiser needs it when tests stub its focus service. -->
+            <groupId>com.googlecode.json-simple</groupId>
+            <artifactId>json-simple</artifactId>
+            <version>1.1.1</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -45,21 +53,34 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <!-- Test-only: RPCharacters classes reference MMOCore/MythicLib when tests load them. -->
             <groupId>local</groupId>
             <artifactId>MMOCore</artifactId>
             <version>1.13.1-SNAPSHOT-tfmc-81d511d08309</version>
-            <scope>provided</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>MythicLib</artifactId>
             <version>1.7.1-SNAPSHOT-tfmc-225aa7f75d4e</version>
-            <scope>provided</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>me.plugins</groupId>
             <artifactId>tlibs</artifactId>
             <version>${tlibs.version}</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>net.tfminecraft</groupId>
+            <artifactId>simplefactions</artifactId>
+            <version>${simplefactions.version}</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>

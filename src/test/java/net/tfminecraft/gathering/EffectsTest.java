@@ -43,7 +43,7 @@ class EffectsTest extends GatheringTestSupport {
     SpotParticles.tickRing(player, spot, null, false);
     var type =
         new SpotTypeLoader.SpotTypeDefinition(
-            "x", Set.of(), null, null, null, Material.DIRT, 1, 0, null, List.of());
+            "x", Set.of(), null, null, null, Material.DIRT, 1, null, List.of());
     for (int i = 0; i < 33; i++) SpotParticles.tickRing(player, spot, type, true);
     verify(player, times(68))
         .spawnParticle(

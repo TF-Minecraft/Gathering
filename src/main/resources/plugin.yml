@@ -5,14 +5,20 @@ version: '${project.version}'
 author: Drefvelin
 
 depend: [TLibs, RPCharacters]
-softdepend: [MMOCore]
+softdepend: [SimpleFactions]
 
 commands:
+  gather:
+    usage: /<command> [on|off]
+    description: Toggle gathering mode, which costs Mental Points while it is on
+    permission: gathering.use
   gathering:
-    usage: /<command> <reload|clearcache|status|forcespawn|adminmode>
+    usage: /<command> <reload|clearcache|status|forcespawn|adminmode|freshness>
     description: Gathering admin commands
     permission: gathering.admin
 
 permissions:
+  gathering.use:
+    default: true
   gathering.admin:
     default: op
