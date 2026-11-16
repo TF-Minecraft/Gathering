@@ -1,78 +1,93 @@
 package net.tfminecraft.gathering.spawn;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 
 import net.tfminecraft.gathering.cache.Cache;
 import net.tfminecraft.gathering.loader.SpotTypeLoader;
+import net.tfminecraft.gathering.utils.Provinces;
 
 public final class SpawnPlanner {
 
     public static final class ProbeResult {
         public final Location location;
         public final Material surfaceMaterial;
+        /** Every candidate type that accepts this surface. Never empty. */
+        public final List<SpotTypeLoader.SpotTypeDefinition> types;
 
-        public ProbeResult(Location location, Material surfaceMaterial) {
+        public ProbeResult(Location location, Material surfaceMaterial,
+                List<SpotTypeLoader.SpotTypeDefinition> types) {
             this.location = location;
             this.surfaceMaterial = surfaceMaterial;
+            this.types = types;
         }
     }
 
     private SpawnPlanner() {}
 
-    public static ProbeResult tryFindLocation(Chunk chunk, SpotTypeLoader.SpotTypeDefinition type) {
-        if (chunk == null || type == null) return null;
-        World world = chunk.getWorld();
-        int baseX = chunk.getX() << 4;
-        int baseZ = chunk.getZ() << 4;
+    /**
+     * Scans one column from {@link Cache#spawnMaxVertical} above {@code centerY} down to the same distance
+     * below it, and returns the first solid surface with two air blocks above that at least one of
+     * {@code types} accepts. The province is only looked up when a type needs it.
+     */
+    public static ProbeResult probeColumn(World world, int x, int z, int centerY,
+            Collection<SpotTypeLoader.SpotTypeDefinition> types) {
+        if (world == null || types == null || types.isEmpty()) return null;
+        int top = Math.min(world.getMaxHeight() - 2, centerY + Cache.spawnMaxVertical);
+        int bottom = Math.max(world.getMinHeight() + 1, centerY - Cache.spawnMaxVertical);
 
-        List<int[]> columns = new ArrayList<>();
-        for (int dx = 0; dx < 16; dx++) {
-            for (int dz = 0; dz < 16; dz++) {
-                columns.add(new int[]{baseX + dx, baseZ + dz});
+        Integer province = null;
+        for (int y = top; y >= bottom; y--) {
+            Block surface = world.getBlockAt(x, y, z);
+            if (!surface.getType().isSolid()) continue;
+            if (!world.getBlockAt(x, y + 1, z).getType().isAir()) continue;
+            if (!world.getBlockAt(x, y + 2, z).getType().isAir()) continue;
+
+            Material surfaceMat = surface.getType();
+            Biome biome = surface.getBiome();
+            List<SpotTypeLoader.SpotTypeDefinition> eligible = new ArrayList<>();
+            for (SpotTypeLoader.SpotTypeDefinition type : types) {
+                if (!type.acceptsSpawnBlock(surfaceMat)) continue;
+                if (!type.acceptsAltitude(y)) continue;
+                if (!type.acceptsBiome(biome)) continue;
+                if (type.requiresProvince()) {
+                    if (province == null) province = Provinces.at(x, z);
+                    if (!type.acceptsProvince(province)) continue;
+                }
+                eligible.add(type);
             }
-        }
-        Collections.shuffle(columns, ThreadLocalRandom.current());
-
-        int attempts = Math.min(Cache.probeColumnAttempts, columns.size());
-        for (int i = 0; i < attempts; i++) {
-            int[] col = columns.get(i);
-            ProbeResult result = probeColumn(world, col[0], col[1], type);
-            if (result != null) return result;
+            if (!eligible.isEmpty()) {
+                return new ProbeResult(new Location(world, x, y, z), surfaceMat, eligible);
+            }
         }
         return null;
     }
 
-    private static ProbeResult probeColumn(World world, int x, int z, SpotTypeLoader.SpotTypeDefinition type) {
-        int maxY = world.getMaxHeight() - 2;
-        int minY = world.getMinHeight() + 1;
-
-        for (int y = maxY; y >= minY; y--) {
-            Block surface = world.getBlockAt(x, y, z);
-            Block above = world.getBlockAt(x, y + 1, z);
-            Block above2 = world.getBlockAt(x, y + 2, z);
-
-            if (!surface.getType().isSolid()) continue;
-            if (!above.getType().isAir() || !above2.getType().isAir()) continue;
-
-            Material surfaceMat = surface.getType();
-            if (!type.acceptsSpawnBlock(surfaceMat)) continue;
-            if (!type.acceptsAltitude(y)) continue;
-
-            org.bukkit.block.Biome biome = surface.getBiome();
-            if (!type.acceptsBiome(biome)) continue;
-
-            Location loc = new Location(world, x, y, z);
-            return new ProbeResult(loc, surfaceMat);
+    /**
+     * Picks a type by {@code spawnWeight} using {@code roll} in [0, 1). When no type has a positive
+     * weight (a forced spawn of a weight-0 type), the first type is used.
+     */
+    public static SpotTypeLoader.SpotTypeDefinition pickWeighted(List<SpotTypeLoader.SpotTypeDefinition> types,
+            double roll) {
+        double total = 0.0;
+        for (SpotTypeLoader.SpotTypeDefinition type : types) {
+            total += type.spawnWeight;
         }
-        return null;
+        if (total <= 0.0) return types.get(0);
+
+        double r = roll * total;
+        double acc = 0.0;
+        for (int i = 0; i < types.size() - 1; i++) {
+            acc += types.get(i).spawnWeight;
+            if (r < acc) return types.get(i);
+        }
+        return types.get(types.size() - 1);
     }
 }

@@ -49,16 +49,13 @@ class DomainTest {
   }
 
   @Test
-  void spotsPreserveIdentityDiscoveriesAndBlockGeometry() {
+  void spotsPreserveIdentityAttendanceAndBlockGeometry() {
     World world = server.addSimpleWorld("world");
     World other = server.addSimpleWorld("other");
-    UUID id = UUID.randomUUID(), character = UUID.randomUUID();
-    Map<UUID, Long> discoveries = new HashMap<>(Map.of(character, 123L));
+    UUID id = UUID.randomUUID();
     GatheringSpot spot =
-        new GatheringSpot(
-            id, "world", -1, 64, -17, "herb", Material.GRASS_BLOCK, 100L, discoveries);
-    discoveries.clear();
-    assertEquals(123L, spot.getDiscoveredByCharacter().get(character));
+        new GatheringSpot(id, "world", -1, 64, -17, "herb", Material.GRASS_BLOCK, 100L);
+    assertEquals(100L, spot.getLastAttendedMs());
     assertEquals(id, spot.getId());
     assertEquals("world", spot.getWorldName());
     assertEquals(-1, spot.getBlockX());
@@ -69,14 +66,10 @@ class DomainTest {
     assertEquals(100L, spot.getSpawnedAtMs());
     assertEquals(-1, spot.getChunkX());
     assertEquals(-2, spot.getChunkZ());
-    spot.markDiscovered(character);
-    assertEquals(123L, spot.getDiscoveredByCharacter().get(character));
-    spot.markDiscovered(null);
-    assertFalse(spot.isDiscoveredBy(null));
-    UUID unseen = UUID.randomUUID();
-    assertFalse(spot.isDiscoveredBy(unseen));
-    spot.markDiscovered(unseen);
-    assertTrue(spot.isDiscoveredBy(unseen));
+    spot.markAttended(500L);
+    assertEquals(500L, spot.getLastAttendedMs());
+    spot.markAttended(200L);
+    assertEquals(500L, spot.getLastAttendedMs());
     assertEquals(world, spot.resolveWorld());
     assertEquals(new Location(world, -.5, 64.5, -16.5), spot.getAnchor());
     assertEquals(64.85, spot.getParticleLocation().getY(), 1e-9);
@@ -97,7 +90,7 @@ class DomainTest {
     assertEquals(spot, spot);
     assertNotEquals(spot, null);
     assertNotEquals(spot, "spot");
-    GatheringSpot same = new GatheringSpot(id, "other", 0, 0, 0, null, null, 0, null);
+    GatheringSpot same = new GatheringSpot(id, "other", 0, 0, 0, null, null, 0);
     assertEquals(spot, same);
     assertEquals(spot.hashCode(), same.hashCode());
     GatheringSpot made = GatheringSpot.create("world", 0, 0, 0, "herb", Material.STONE);
@@ -170,11 +163,14 @@ class DomainTest {
   @Test
   void spotDefinitionsRespectInclusiveLimitsAndDefaults() {
     SpotTypeDefinition open =
-        new SpotTypeDefinition("a", null, null, null, null, null, 2, 5, null, List.of());
+        new SpotTypeDefinition("a", null, null, null, null, null, -2, null, List.of());
     assertTrue(open.acceptsBiome(Biome.PLAINS));
     assertTrue(open.acceptsAltitude(-100));
     assertTrue(open.acceptsSpawnBlock(Material.STONE));
     assertEquals(Material.DIRT, open.resolveParticleMaterial(Material.DIRT));
+    assertEquals(0, open.spawnWeight);
+    assertFalse(open.requiresProvince());
+    assertTrue(open.acceptsProvince(-2));
     SpotTypeDefinition bounded =
         new SpotTypeDefinition(
             "b",
@@ -184,8 +180,7 @@ class DomainTest {
             Material.STONE,
             Material.DIRT,
             2,
-            5,
-            "herbalism",
+            Set.of(7),
             List.of());
     assertTrue(bounded.acceptsBiome(Biome.PLAINS));
     assertFalse(bounded.acceptsBiome(Biome.DESERT));
@@ -196,8 +191,16 @@ class DomainTest {
     assertTrue(bounded.acceptsSpawnBlock(Material.STONE));
     assertFalse(bounded.acceptsSpawnBlock(Material.DIRT));
     assertEquals(Material.DIRT, bounded.resolveParticleMaterial(Material.STONE));
+    assertEquals(2, bounded.spawnWeight);
+    assertTrue(bounded.requiresProvince());
+    assertTrue(bounded.acceptsProvince(7));
+    assertFalse(bounded.acceptsProvince(8));
+    SpotTypeDefinition nowhere =
+        new SpotTypeDefinition("n", null, null, null, null, null, 1, Set.of(), List.of());
+    assertTrue(nowhere.requiresProvince());
+    assertFalse(nowhere.acceptsProvince(7));
     assertTrue(
-        new SpotTypeDefinition("c", Set.of(), null, null, null, null, 1, 0, null, List.of())
+        new SpotTypeDefinition("c", Set.of(), null, null, null, null, 1, null, List.of())
             .acceptsBiome(Biome.DESERT));
     ThreadLocalRandom rng = mock(ThreadLocalRandom.class);
     CategoryWeight single = new CategoryWeight("a", -1, -1, 0);

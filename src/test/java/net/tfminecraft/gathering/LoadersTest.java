@@ -19,38 +19,77 @@ class LoadersTest extends GatheringTestSupport {
   void configDefaultsClampsBoundsAndReversedEffects() throws Exception {
     ConfigLoader loader = new ConfigLoader();
     loader.load(yaml("empty.yml", "{}").toFile());
-    assertEquals(10, Cache.spawnIntervalMinutes);
-    assertEquals(4320, Cache.chunkCooldownMinutes);
     assertTrue(Cache.worldBounds.isEmpty());
-    assertTrue(Cache.passiveDiscoveryEnabled);
-    assertEquals("herbalism", Cache.professionId);
+    assertEquals(1, Cache.drainAmount);
+    assertEquals(90, Cache.drainIntervalSeconds);
+    assertEquals("&7Gathering &8· &e{mp} MP", Cache.actionbarFormat);
+    assertEquals(20, Cache.spawnIntervalSeconds);
+    assertEquals(8, Cache.spawnMinRadius);
+    assertEquals(32, Cache.spawnMaxRadius);
+    assertEquals(16, Cache.spawnMaxVertical);
+    assertEquals(6, Cache.spawnMinSpacing);
+    assertEquals(8, Cache.spawnLocationAttempts);
+    assertEquals(3, Cache.capBase);
+    assertEquals(1, Cache.capPerExtraGatherer);
+    assertEquals(6, Cache.capMax);
+    assertEquals(.30, Cache.spawnBaseChance);
+    assertEquals(.85, Cache.spawnMaxChance);
+    assertEquals(.010, Cache.wisdomWeight);
+    assertEquals(.0075, Cache.intelligenceWeight);
+    assertEquals(15, Cache.spotLifetimeMinutes);
+    assertEquals(48, Cache.spotKeepaliveRadius);
+    assertEquals(60, Cache.spotOrphanGraceSeconds);
+    assertEquals(1, Cache.freshnessPerHarvest);
+    assertEquals(0, Cache.freshnessPerSpawn);
+    assertEquals(24, Cache.freshnessHalfLifeHours);
+    assertEquals(1, Cache.freshnessStrength);
     loader.load(
         yaml(
                 "config.yml",
                 """
                 spawn-interval-minutes: 0
                 chunk-cooldown-minutes: -1
-                spawn-attempts-per-tick: 0
-                probe-column-attempts: 0
-                worlds:
-                  world:
-                    chunk-x-min: -5
-                    chunk-x-max: 8
-                    chunk-z-min: -7
-                    chunk-z-max: 9
-                passive-discovery:
-                  enabled: false
-                  interval-seconds: 0
-                  radius: 12
-                  base-chance: 0.4
-                  message: hello
-                attributes:
-                  wisdom-weight: 0.3
-                  intelligence-weight: 0.2
                 profession:
                   enabled: false
-                  id: mining
-                  level-weight: 0.5
+                worlds:
+                  world:
+                    chunk-x-min: 8
+                    chunk-x-max: -5
+                    chunk-z-min: -7
+                    chunk-z-max: 9
+                mode:
+                  drain-amount: -3
+                  drain-interval-seconds: 0
+                  actionbar: ''
+                  messages:
+                    enter: in
+                    leave: out
+                    out-of-focus: tired
+                    no-focus: none
+                    no-character: who
+                spawn:
+                  interval-seconds: 0
+                  min-radius: -4
+                  max-radius: -8
+                  max-vertical: -1
+                  min-spacing: -2
+                  location-attempts: 0
+                  cap-base: -1
+                  cap-per-extra-gatherer: -1
+                  cap-max: -1
+                  base-chance: 0.5
+                  max-chance: 4
+                  wisdom-weight: 0.3
+                  intelligence-weight: 0.2
+                spot:
+                  lifetime-minutes: 0
+                  keepalive-radius: 0
+                  orphan-grace-seconds: -5
+                freshness:
+                  per-harvest: -1
+                  per-spawn: -1
+                  half-life-hours: -1
+                  strength: -1
                 particles:
                   interval-ticks: 0
                   ring-radius: 0.7
@@ -62,26 +101,46 @@ class LoadersTest extends GatheringTestSupport {
                   kick-horizontal-max: 0.2
                 """)
             .toFile());
-    assertEquals(1, Cache.spawnIntervalMinutes);
-    assertEquals(0, Cache.chunkCooldownMinutes);
-    assertEquals(1, Cache.spawnAttemptsPerTick);
-    assertEquals(1, Cache.probeColumnAttempts);
     var bounds = Cache.worldBounds.get("world");
     assertEquals("world", bounds.world);
     assertEquals(-5, bounds.chunkXMin);
     assertEquals(8, bounds.chunkXMax);
     assertEquals(-7, bounds.chunkZMin);
     assertEquals(9, bounds.chunkZMax);
-    assertFalse(Cache.passiveDiscoveryEnabled);
-    assertEquals(1, Cache.passiveIntervalSeconds);
-    assertEquals(12, Cache.passiveRadius);
-    assertEquals(.4, Cache.passiveBaseChance);
-    assertEquals("hello", Cache.passiveMessage);
+    assertTrue(bounds.containsChunk(-5, 9));
+    assertTrue(bounds.containsChunk(8, -7));
+    assertFalse(bounds.containsChunk(-6, 0));
+    assertFalse(bounds.containsChunk(9, 0));
+    assertFalse(bounds.containsChunk(0, -8));
+    assertFalse(bounds.containsChunk(0, 10));
+    assertEquals(0, Cache.drainAmount);
+    assertEquals(1, Cache.drainIntervalSeconds);
+    assertEquals("", Cache.actionbarFormat);
+    assertEquals("in", Cache.messageEnter);
+    assertEquals("out", Cache.messageLeave);
+    assertEquals("tired", Cache.messageOutOfFocus);
+    assertEquals("none", Cache.messageNoFocus);
+    assertEquals("who", Cache.messageNoCharacter);
+    assertEquals(1, Cache.spawnIntervalSeconds);
+    assertEquals(0, Cache.spawnMinRadius);
+    assertEquals(0, Cache.spawnMaxRadius);
+    assertEquals(0, Cache.spawnMaxVertical);
+    assertEquals(0, Cache.spawnMinSpacing);
+    assertEquals(1, Cache.spawnLocationAttempts);
+    assertEquals(0, Cache.capBase);
+    assertEquals(0, Cache.capPerExtraGatherer);
+    assertEquals(0, Cache.capMax);
+    assertEquals(.5, Cache.spawnBaseChance);
+    assertEquals(1, Cache.spawnMaxChance);
     assertEquals(.3, Cache.wisdomWeight);
     assertEquals(.2, Cache.intelligenceWeight);
-    assertFalse(Cache.professionEnabled);
-    assertEquals("mining", Cache.professionId);
-    assertEquals(.5, Cache.professionLevelWeight);
+    assertEquals(1, Cache.spotLifetimeMinutes);
+    assertEquals(1, Cache.spotKeepaliveRadius);
+    assertEquals(0, Cache.spotOrphanGraceSeconds);
+    assertEquals(0, Cache.freshnessPerHarvest);
+    assertEquals(0, Cache.freshnessPerSpawn);
+    assertEquals(0, Cache.freshnessHalfLifeHours);
+    assertEquals(0, Cache.freshnessStrength);
     assertEquals(1, Cache.particleIntervalTicks);
     assertEquals(.7, Cache.particleRingRadius);
     assertTrue(Cache.gatherBurstParticles);
@@ -89,8 +148,11 @@ class LoadersTest extends GatheringTestSupport {
     assertEquals(2, Cache.gatherKickVelocityMax);
     assertEquals(.2, Cache.gatherKickHorizontalMin);
     assertEquals(.4, Cache.gatherKickHorizontalMax);
+    loader.load(yaml("radius.yml", "spawn:\n  min-radius: 10\n  max-radius: 4\n").toFile());
+    assertEquals(10, Cache.spawnMinRadius);
+    assertEquals(10, Cache.spawnMaxRadius);
     loader.load(temp.resolve("missing.yml").toFile());
-    assertEquals(10, Cache.spawnIntervalMinutes);
+    assertEquals(20, Cache.spawnIntervalSeconds);
     loader.load(yaml("invalid.yml", "key: [unterminated").toFile());
     assertTrue(Cache.worldBounds.isEmpty());
   }
@@ -135,6 +197,8 @@ class LoadersTest extends GatheringTestSupport {
                   altitude-max: 90
                   spawn-block: stone
                   particle-dust: dirt
+                  spawn-weight: 4
+                  provinces: [12, '47', ' 9 ', bad]
                   max-active: 0
                   cooldown-minutes: -3
                   profession-id: herbalism
@@ -147,6 +211,8 @@ class LoadersTest extends GatheringTestSupport {
                 bad:
                   spawn-block: unknown
                   particle-dust: ' '
+                  spawn-weight: -1
+                  provinces: [nope]
                   categories:
                     - {id: reversed, drops: '5-2'}
                     - {id: negative, drops: '-1'}
@@ -162,9 +228,8 @@ class LoadersTest extends GatheringTestSupport {
     assertEquals(90, herb.altitudeMax);
     assertEquals(Material.STONE, herb.spawnBlock);
     assertEquals(Material.DIRT, herb.particleDust);
-    assertEquals(1, herb.maxActive);
-    assertEquals(0, herb.cooldownMinutes);
-    assertEquals("herbalism", herb.professionId);
+    assertEquals(4, herb.spawnWeight);
+    assertEquals(Set.of(12, 47, 9), herb.provinces);
     assertEquals(4, herb.categories.size());
     assertEquals(2, herb.categories.get(0).dropsMin);
     assertEquals(4, herb.categories.get(0).dropsMax);
@@ -176,16 +241,24 @@ class LoadersTest extends GatheringTestSupport {
     var bad = SpotTypeLoader.getByString("bad");
     assertNull(bad.spawnBlock);
     assertNull(bad.particleDust);
+    assertEquals(0, bad.spawnWeight);
+    assertEquals(Set.of(), bad.provinces);
+    assertFalse(bad.acceptsProvince(12));
     assertEquals(5, bad.categories.get(0).dropsMax);
     assertEquals(1, bad.categories.get(1).dropsMin);
     loader.load(
         yaml(
                 "biome-inputs.yml",
-                "missing: {}\nempty:\n  biome: []\nnulls:\n  biome: [null, plains]\n")
+                "missing: {}\nempty:\n  biome: []\n  provinces: []\nnulls:\n  biome: [null, plains]\n"
+                    + "single:\n  provinces: 5\n")
             .toFile());
     assertEquals(Set.of(), SpotTypeLoader.getByString("missing").biomes);
     assertEquals(Set.of(), SpotTypeLoader.getByString("empty").biomes);
     assertEquals(Set.of(Biome.PLAINS), SpotTypeLoader.getByString("nulls").biomes);
+    assertEquals(1, SpotTypeLoader.getByString("missing").spawnWeight);
+    assertNull(SpotTypeLoader.getByString("missing").provinces);
+    assertNull(SpotTypeLoader.getByString("empty").provinces);
+    assertEquals(Set.of(5), SpotTypeLoader.getByString("single").provinces);
     loader.load(temp.resolve("missing.yml").toFile());
     assertTrue(SpotTypeLoader.all().isEmpty());
     loader.load(yaml("badtypes.yml", "key: [unterminated").toFile());

@@ -1,7 +1,5 @@
 package net.tfminecraft.gathering.spot;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -20,11 +18,10 @@ public final class GatheringSpot {
     private final String spotTypeId;
     private final Material spawnBlockMaterial;
     private final long spawnedAtMs;
-    private final Map<UUID, Long> discoveredByCharacter = new HashMap<>();
+    private long lastAttendedMs;
 
     public GatheringSpot(UUID id, String world, int blockX, int blockY, int blockZ,
-            String spotTypeId, Material spawnBlockMaterial, long spawnedAtMs,
-            Map<UUID, Long> discoveredByCharacter) {
+            String spotTypeId, Material spawnBlockMaterial, long spawnedAtMs) {
         this.id = id;
         this.world = world;
         this.blockX = blockX;
@@ -33,15 +30,13 @@ public final class GatheringSpot {
         this.spotTypeId = spotTypeId;
         this.spawnBlockMaterial = spawnBlockMaterial;
         this.spawnedAtMs = spawnedAtMs;
-        if (discoveredByCharacter != null) {
-            this.discoveredByCharacter.putAll(discoveredByCharacter);
-        }
+        this.lastAttendedMs = spawnedAtMs;
     }
 
     public static GatheringSpot create(String world, int blockX, int blockY, int blockZ,
             String spotTypeId, Material spawnBlockMaterial) {
         return new GatheringSpot(UUID.randomUUID(), world, blockX, blockY, blockZ,
-                spotTypeId, spawnBlockMaterial, System.currentTimeMillis(), null);
+                spotTypeId, spawnBlockMaterial, System.currentTimeMillis());
     }
 
     public UUID getId() {
@@ -76,17 +71,13 @@ public final class GatheringSpot {
         return spawnedAtMs;
     }
 
-    public Map<UUID, Long> getDiscoveredByCharacter() {
-        return discoveredByCharacter;
+    /** Last time a player in gathering mode was close enough to keep this spot alive. */
+    public long getLastAttendedMs() {
+        return lastAttendedMs;
     }
 
-    public boolean isDiscoveredBy(UUID characterUuid) {
-        return characterUuid != null && discoveredByCharacter.containsKey(characterUuid);
-    }
-
-    public void markDiscovered(UUID characterUuid) {
-        if (characterUuid == null) return;
-        discoveredByCharacter.putIfAbsent(characterUuid, System.currentTimeMillis());
+    public void markAttended(long now) {
+        lastAttendedMs = Math.max(lastAttendedMs, now);
     }
 
     public int getChunkX() {

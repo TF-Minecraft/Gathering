@@ -4,44 +4,37 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 
 import net.tfminecraft.gathering.Gathering;
+import net.tfminecraft.gathering.freshness.ChunkFreshness;
 import net.tfminecraft.gathering.manager.ChunkKey;
 
+/**
+ * Chunk depletion, saved in Data/chunk-cache.json. Older files also carried {@code cooldowns} and
+ * {@code excluded}; those sections are ignored on load and dropped on the next save.
+ */
 public final class ChunkCacheDatabase {
 
-    public static final class ExcludedChunk {
-        public String world;
-        public int chunkX;
-        public int chunkZ;
-        public String reason;
+    public static final class DepletionRecord {
+        public double value;
+        public long updated;
 
-        public ExcludedChunk() {}
+        public DepletionRecord() {}
 
-        public ExcludedChunk(String world, int chunkX, int chunkZ, String reason) {
-            this.world = world;
-            this.chunkX = chunkX;
-            this.chunkZ = chunkZ;
-            this.reason = reason;
-        }
-
-        public ChunkKey toKey() {
-            return new ChunkKey(world, chunkX, chunkZ);
+        public DepletionRecord(double value, long updated) {
+            this.value = value;
+            this.updated = updated;
         }
     }
 
     public static final class CacheData {
-        public Map<String, Long> cooldowns = new HashMap<>();
-        public List<ExcludedChunk> excluded = new ArrayList<>();
+        public Map<String, DepletionRecord> depletion = new HashMap<>();
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -59,20 +52,16 @@ public final class ChunkCacheDatabase {
         try (FileReader reader = new FileReader(file)) {
             CacheData data = GSON.fromJson(reader, CacheData.class);
             return data != null ? data : new CacheData();
-        } catch (IOException ex) {
+        } catch (IOException | JsonParseException ex) {
             Gathering.plugin.getLogger().warning("Failed to load chunk cache: " + ex.getMessage());
             return new CacheData();
         }
     }
 
-    public static void save(Map<ChunkKey, Long> cooldowns, Set<ChunkKey> excluded, Map<ChunkKey, String> reasons) {
+    public static void save(Map<ChunkKey, ChunkFreshness.Entry> entries) {
         CacheData data = new CacheData();
-        for (Map.Entry<ChunkKey, Long> e : cooldowns.entrySet()) {
-            data.cooldowns.put(e.getKey().serialize(), e.getValue());
-        }
-        for (ChunkKey key : excluded) {
-            String reason = reasons.getOrDefault(key, "no_valid_surface");
-            data.excluded.add(new ExcludedChunk(key.world, key.chunkX, key.chunkZ, reason));
+        for (Map.Entry<ChunkKey, ChunkFreshness.Entry> e : entries.entrySet()) {
+            data.depletion.put(e.getKey().serialize(), new DepletionRecord(e.getValue().value, e.getValue().updatedMs));
         }
 
         File file = getFile();
@@ -84,38 +73,28 @@ public final class ChunkCacheDatabase {
         }
     }
 
-    public static Map<ChunkKey, Long> parseCooldowns(CacheData data) {
-        Map<ChunkKey, Long> out = new HashMap<>();
-        if (data.cooldowns == null) return out;
-        long now = System.currentTimeMillis();
-        for (Map.Entry<String, Long> e : data.cooldowns.entrySet()) {
+    public static Map<ChunkKey, ChunkFreshness.Entry> parseDepletion(CacheData data) {
+        Map<ChunkKey, ChunkFreshness.Entry> out = new HashMap<>();
+        if (data.depletion == null) return out;
+        for (Map.Entry<String, DepletionRecord> e : data.depletion.entrySet()) {
             ChunkKey key = ChunkKey.deserialize(e.getKey());
-            if (key == null) continue;
-            if (e.getValue() != null && e.getValue() > now) {
-                out.put(key, e.getValue());
-            }
+            DepletionRecord record = e.getValue();
+            if (key == null || record == null) continue;
+            if (!Double.isFinite(record.value) || record.value <= 0) continue;
+            out.put(key, new ChunkFreshness.Entry(record.value, record.updated));
         }
         return out;
     }
 
-    public static Set<ChunkKey> parseExcluded(CacheData data) {
-        Set<ChunkKey> out = new HashSet<>();
-        if (data.excluded == null) return out;
-        for (ExcludedChunk chunk : data.excluded) {
-            if (chunk == null || chunk.world == null) continue;
-            out.add(new ChunkKey(chunk.world, chunk.chunkX, chunk.chunkZ));
+    /** Old builds saved every spot; spots are now memory-only, so set the file aside once. */
+    public static void retireLegacySpotsFile() {
+        File legacy = new File(Gathering.plugin.getDataFolder(), "Data/spots.json");
+        if (!legacy.isFile()) return;
+        File retired = new File(Gathering.plugin.getDataFolder(), "Data/spots.json.old");
+        if (legacy.renameTo(retired)) {
+            Gathering.plugin.getLogger().info("Spots are no longer saved; moved Data/spots.json to spots.json.old.");
+        } else {
+            Gathering.plugin.getLogger().warning("Could not move the unused Data/spots.json aside.");
         }
-        return out;
-    }
-
-    public static Map<ChunkKey, String> parseExclusionReasons(CacheData data) {
-        Map<ChunkKey, String> out = new HashMap<>();
-        if (data.excluded == null) return out;
-        for (ExcludedChunk chunk : data.excluded) {
-            if (chunk == null || chunk.world == null) continue;
-            ChunkKey key = new ChunkKey(chunk.world, chunk.chunkX, chunk.chunkZ);
-            out.put(key, chunk.reason != null ? chunk.reason : "no_valid_surface");
-        }
-        return out;
     }
 }

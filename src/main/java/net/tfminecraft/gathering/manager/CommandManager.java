@@ -3,9 +3,11 @@ package net.tfminecraft.gathering.manager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -15,13 +17,12 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.gathering.Gathering;
 import net.tfminecraft.gathering.loader.SpotTypeLoader;
-import net.tfminecraft.gathering.spawn.ChunkLoadHelper;
-import net.tfminecraft.gathering.spawn.ChunkProbe;
+import net.tfminecraft.gathering.spot.GatheringSpot;
 
 public final class CommandManager implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-            "reload", "clearcache", "status", "forcespawn", "adminmode");
+            "reload", "clearcache", "status", "forcespawn", "adminmode", "freshness");
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -31,7 +32,7 @@ public final class CommandManager implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 0) {
-            sender.sendMessage("§e/gathering <reload|clearcache|status|forcespawn|adminmode>");
+            sender.sendMessage("§e/gathering <reload|clearcache|status|forcespawn|adminmode|freshness>");
             return true;
         }
 
@@ -42,6 +43,7 @@ public final class CommandManager implements CommandExecutor, TabCompleter {
             case "status" -> handleStatus(sender);
             case "forcespawn" -> handleForceSpawn(sender, args);
             case "adminmode" -> handleAdminMode(sender, args);
+            case "freshness" -> handleFreshness(sender);
             default -> sender.sendMessage("§cUnknown subcommand.");
         }
         return true;
@@ -49,26 +51,28 @@ public final class CommandManager implements CommandExecutor, TabCompleter {
 
     private void handleReload(CommandSender sender) {
         Gathering.plugin.reloadAll();
-        sender.sendMessage("§aGathering configs reloaded.");
+        sender.sendMessage("§aGathering configs reloaded; active spots cleared.");
     }
 
     private void handleClearCache(CommandSender sender, String[] args) {
         SpotManager manager = Gathering.plugin.getSpotManager();
         if (args.length >= 2) {
-            manager.clearExcludedChunks(args[1]);
-            sender.sendMessage("§aCleared excluded chunk cache for world §f" + args[1] + "§a.");
+            manager.clearFreshness(args[1]);
+            sender.sendMessage("§aReset chunk depletion for world §f" + args[1] + "§a.");
         } else {
-            manager.clearExcludedChunks(null);
-            sender.sendMessage("§aCleared all excluded chunk caches.");
+            manager.clearFreshness(null);
+            sender.sendMessage("§aReset chunk depletion for all worlds.");
         }
     }
 
     private void handleStatus(CommandSender sender) {
         SpotManager manager = Gathering.plugin.getSpotManager();
+        long now = System.currentTimeMillis();
         sender.sendMessage("§6Gathering status:");
         sender.sendMessage("§7Active spots: §f" + manager.getActiveSpotCount());
-        sender.sendMessage("§7Excluded chunks: §f" + manager.getExcludedChunkCount());
-        sender.sendMessage("§7Chunks on cooldown: §f" + manager.getCooldownChunkCount());
+        sender.sendMessage("§7Players gathering: §f" + Gathering.plugin.getModeService().activeCount());
+        sender.sendMessage("§7Tracked chunks: §f" + manager.getTrackedChunkCount()
+                + " §7(below 50% freshness: §f" + manager.countChunksBelow(0.5, now) + "§7)");
     }
 
     private void handleForceSpawn(CommandSender sender, String[] args) {
@@ -76,38 +80,36 @@ public final class CommandManager implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cPlayers only.");
             return;
         }
-        if (args.length < 2) {
-            sender.sendMessage("§cUsage: /gathering forcespawn <spotType> [chunkX chunkZ]");
-            return;
+
+        SpotTypeLoader.SpotTypeDefinition type = null;
+        if (args.length >= 2) {
+            type = SpotTypeLoader.getByString(args[1]);
+            if (type == null) {
+                sender.sendMessage("§cUnknown spot type: " + args[1]);
+                return;
+            }
         }
 
-        SpotTypeLoader.SpotTypeDefinition type = SpotTypeLoader.getByString(args[1]);
-        if (type == null) {
-            sender.sendMessage("§cUnknown spot type: " + args[1]);
-            return;
-        }
-
-        World world = player.getWorld();
-        int chunkX = args.length >= 4 ? parseInt(args[2], player.getLocation().getBlockX() >> 4)
-                : player.getLocation().getBlockX() >> 4;
-        int chunkZ = args.length >= 4 ? parseInt(args[3], player.getLocation().getBlockZ() >> 4)
-                : player.getLocation().getBlockZ() >> 4;
-
-        SpotManager manager = Gathering.plugin.getSpotManager();
-        ChunkKey key = manager.chunkKey(world.getName(), chunkX, chunkZ);
-        if (manager.hasActiveSpotInChunk(key)) {
-            sender.sendMessage("§cChunk already has an active spot.");
-            return;
-        }
-
-        ChunkProbe.ProbeOutcome outcome = ChunkLoadHelper.withLoadedChunk(world, chunkX, chunkZ,
-                chunk -> ChunkProbe.probe(manager, chunk, type));
-
-        if (outcome == ChunkProbe.ProbeOutcome.SPAWNED) {
-            sender.sendMessage("§aSpawned §f" + type.id + " §aat chunk §f" + chunkX + ", " + chunkZ);
+        GatheringSpot spot = Gathering.plugin.getSpawnService().forceSpawn(player, type);
+        if (spot == null) {
+            sender.sendMessage("§cNo valid surface found nearby.");
         } else {
-            sender.sendMessage("§cNo valid surface in chunk - marked excluded.");
+            sender.sendMessage("§aSpawned §f" + spot.getSpotTypeId() + " §aat §f" + spot.getBlockX() + ", "
+                    + spot.getBlockY() + ", " + spot.getBlockZ());
         }
+    }
+
+    private void handleFreshness(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cPlayers only.");
+            return;
+        }
+        SpotManager manager = Gathering.plugin.getSpotManager();
+        Location loc = player.getLocation();
+        ChunkKey key = ChunkKey.of(loc.getWorld().getName(), loc.getBlockX(), loc.getBlockZ());
+        long now = System.currentTimeMillis();
+        sender.sendMessage(String.format(Locale.ROOT, "§7Chunk §f%s§7: depletion §f%.2f§7, freshness §f%.0f%%",
+                key, manager.depletion(key, now), manager.freshness(key, now) * 100));
     }
 
     private void handleAdminMode(CommandSender sender, String[] args) {
@@ -134,14 +136,6 @@ public final class CommandManager implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§7Gathering admin mode §cdisabled§7.");
             }
             default -> sender.sendMessage("§cUsage: /gathering adminmode <on|off>");
-        }
-    }
-
-    private int parseInt(String raw, int fallback) {
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException ex) {
-            return fallback;
         }
     }
 
