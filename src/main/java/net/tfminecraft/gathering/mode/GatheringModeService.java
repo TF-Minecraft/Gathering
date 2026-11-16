@@ -1,6 +1,7 @@
 package net.tfminecraft.gathering.mode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.tfminecraft.gathering.Gathering;
 import net.tfminecraft.gathering.cache.Cache;
@@ -24,7 +26,8 @@ import net.tfminecraft.gathering.utils.FocusBridge;
 /**
  * Who is searching for gathering spots. Being in the mode costs Mental Points: one charge on entry and
  * one every {@link Cache#drainIntervalSeconds}. The mode ends only when the player turns it off or a
- * charge fails; quitting, reloads and shutdowns clear it without a refund.
+ * charge fails; quitting, reloads and shutdowns clear it without a refund. While it is on, a boss bar
+ * shows the player's Mental Points (an action bar would be overwritten by the MMOCore HUD).
  */
 public final class GatheringModeService implements Listener {
 
@@ -37,6 +40,7 @@ public final class GatheringModeService implements Listener {
 
     /** Players in the mode, mapped to seconds since their last charge. */
     private final Map<UUID, Integer> active = new LinkedHashMap<>();
+    private final Map<UUID, BossBar> bars = new HashMap<>();
     private BukkitTask task;
 
     public void start() {
@@ -51,7 +55,17 @@ public final class GatheringModeService implements Listener {
 
     public void shutdown() {
         stopTask();
-        active.clear();
+        for (UUID id : new ArrayList<>(active.keySet())) {
+            end(id);
+        }
+    }
+
+    /** Removes the player from the mode and hides their status bar if they are online. */
+    private void end(UUID id) {
+        active.remove(id);
+        BossBar bar = bars.remove(id);
+        Player player = Bukkit.getPlayer(id);
+        if (bar != null && player != null) player.hideBossBar(bar);
     }
 
     private void stopTask() {
@@ -96,7 +110,8 @@ public final class GatheringModeService implements Listener {
     }
 
     public boolean leave(Player player) {
-        if (player == null || active.remove(player.getUniqueId()) == null) return false;
+        if (!isActive(player)) return false;
+        end(player.getUniqueId());
         send(player, Cache.messageLeave);
         return true;
     }
@@ -114,13 +129,13 @@ public final class GatheringModeService implements Listener {
         for (Map.Entry<UUID, Integer> entry : new ArrayList<>(active.entrySet())) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) {
-                active.remove(entry.getKey());
+                end(entry.getKey());
                 continue;
             }
             int seconds = entry.getValue() + 1;
             if (seconds >= Cache.drainIntervalSeconds) {
                 if (!FocusBridge.trySpend(player, Cache.drainAmount)) {
-                    active.remove(entry.getKey());
+                    end(entry.getKey());
                     send(player, Cache.messageOutOfFocus);
                     continue;
                 }
@@ -132,9 +147,25 @@ public final class GatheringModeService implements Listener {
     }
 
     private void showStatus(Player player) {
-        if (Cache.actionbarFormat == null || Cache.actionbarFormat.isBlank()) return;
-        String text = Cache.actionbarFormat.replace("{mp}", String.valueOf(FocusBridge.points(player)));
-        player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(colorize(text)));
+        if (Cache.statusBarFormat == null || Cache.statusBarFormat.isBlank()) {
+            BossBar bar = bars.remove(player.getUniqueId());
+            if (bar != null) player.hideBossBar(bar);
+            return;
+        }
+        int points = FocusBridge.points(player);
+        int max = FocusBridge.max();
+        float progress = max <= 0 ? 0f : Math.min(1f, Math.max(0f, points / (float) max));
+        var name = LegacyComponentSerializer.legacySection()
+                .deserialize(colorize(Cache.statusBarFormat.replace("{mp}", String.valueOf(points))));
+        BossBar bar = bars.get(player.getUniqueId());
+        if (bar == null) {
+            bar = BossBar.bossBar(name, progress, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+            bars.put(player.getUniqueId(), bar);
+        } else {
+            bar.name(name);
+            bar.progress(progress);
+        }
+        player.showBossBar(bar);
     }
 
     private static void send(Player player, String message) {
@@ -148,6 +179,8 @@ public final class GatheringModeService implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        active.remove(event.getPlayer().getUniqueId());
+        UUID id = event.getPlayer().getUniqueId();
+        active.remove(id);
+        bars.remove(id);
     }
 }

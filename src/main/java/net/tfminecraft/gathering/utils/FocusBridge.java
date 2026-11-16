@@ -15,6 +15,11 @@ public final class FocusBridge {
         return focus == null ? 0 : focus.getPoints(player);
     }
 
+    public static int max() {
+        FocusService focus = RPCharacters.getFocusService();
+        return focus == null ? 0 : focus.getMax();
+    }
+
     /** Spends {@code amount} points; a non-positive amount is free and always succeeds. */
     public static boolean trySpend(Player player, int amount) {
         if (amount <= 0) return true;

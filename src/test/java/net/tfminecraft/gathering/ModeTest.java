@@ -130,26 +130,78 @@ class ModeTest extends GatheringTestSupport {
     assertEquals(1, points.get(player));
   }
 
+  static String barText(PlayerMock player) {
+    var bars = player.getBossBars();
+    if (bars.isEmpty()) return null;
+    var bar = bars.iterator().next();
+    return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(bar.name())
+        + " @" + bar.progress();
+  }
+
   @Test
-  void actionBarShowsCurrentPointsAndCanBeTurnedOff() {
-    PlayerMock player = spy(gatherer(10));
-    characters.when(() -> CharacterBridge.getActiveCharacterUuid(player)).thenReturn(UUID.randomUUID());
+  void statusBarShowsPointsUpdatesAndHidesOnEveryExit() {
+    focus.when(FocusBridge::max).thenReturn(100);
+    PlayerMock player = gatherer(51);
+    mode.enter(player);
+    assertEquals("Gathering · 50 MP @0.5", barText(player));
+    points.put(player, 250);
+    mode.tick();
+    assertEquals("Gathering · 50 MP @0.5", barText(player)); // refreshes every 2 s
+    mode.tick();
+    assertEquals("Gathering · 250 MP @1.0", barText(player));
+    assertEquals(1, player.getBossBars().size());
+    mode.leave(player);
+    assertTrue(player.getBossBars().isEmpty());
+
+    // Running out hides it too.
+    Cache.drainIntervalSeconds = 1;
+    points.put(player, 1);
+    mode.enter(player);
+    assertEquals("Gathering · 0 MP @0.0", barText(player));
+    mode.tick();
+    assertFalse(mode.isActive(player));
+    assertTrue(player.getBossBars().isEmpty());
+
+    // So does a shutdown.
     points.put(player, 10);
     mode.enter(player);
-    verify(player).sendActionBar(any(net.kyori.adventure.text.Component.class));
-    mode.tick();
-    verify(player, times(1)).sendActionBar(any(net.kyori.adventure.text.Component.class));
-    Cache.actionbarFormat = " ";
-    mode.tick();
-    Cache.actionbarFormat = null;
-    mode.tick();
-    mode.tick();
-    verify(player, times(1)).sendActionBar(any(net.kyori.adventure.text.Component.class));
-    Cache.messageLeave = "";
-    mode.leave(player);
-    Cache.messageEnter = null;
+    mode.shutdown();
+    assertFalse(mode.isActive(player));
+    assertTrue(player.getBossBars().isEmpty());
+  }
+
+  @Test
+  void statusBarCanBeTurnedOffAndCopesWithoutFocusData() {
+    PlayerMock player = gatherer(10);
     mode.enter(player);
-    assertTrue(mode.isActive(player));
+    assertEquals("Gathering · 9 MP @0.0", barText(player)); // no max known
+    Cache.statusBarFormat = " ";
+    mode.tick();
+    mode.tick();
+    assertTrue(player.getBossBars().isEmpty());
+    mode.tick();
+    mode.tick();
+    Cache.statusBarFormat = null;
+    mode.leave(player);
+    mode.enter(player);
+    assertTrue(player.getBossBars().isEmpty());
+    mode.leave(player);
+    assertFalse(mode.isActive(player));
+    Cache.statusBarFormat = "&7{mp}";
+    mode.enter(player);
+    player.disconnect();
+    mode.tick();
+    assertEquals(0, mode.activeCount());
+    // Quitting forgets the bar along with the mode.
+    PlayerMock other = gatherer(10);
+    mode.enter(other);
+    mode.onQuit(new PlayerQuitEvent(other, "bye"));
+    assertFalse(mode.isActive(other));
+    Cache.messageLeave = "";
+    Cache.messageEnter = null;
+    mode.enter(other);
+    mode.leave(other);
   }
 
   @Test

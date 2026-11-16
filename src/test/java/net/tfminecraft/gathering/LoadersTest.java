@@ -22,7 +22,7 @@ class LoadersTest extends GatheringTestSupport {
     assertTrue(Cache.worldBounds.isEmpty());
     assertEquals(1, Cache.drainAmount);
     assertEquals(90, Cache.drainIntervalSeconds);
-    assertEquals("&7Gathering &8· &e{mp} MP", Cache.actionbarFormat);
+    assertEquals("&7Gathering &8· &e{mp} MP", Cache.statusBarFormat);
     assertEquals(20, Cache.spawnIntervalSeconds);
     assertEquals(8, Cache.spawnMinRadius);
     assertEquals(32, Cache.spawnMaxRadius);
@@ -60,7 +60,7 @@ class LoadersTest extends GatheringTestSupport {
                 mode:
                   drain-amount: -3
                   drain-interval-seconds: 0
-                  actionbar: ''
+                  status-bar: ''
                   messages:
                     enter: in
                     leave: out
@@ -115,7 +115,7 @@ class LoadersTest extends GatheringTestSupport {
     assertFalse(bounds.containsChunk(0, 10));
     assertEquals(0, Cache.drainAmount);
     assertEquals(1, Cache.drainIntervalSeconds);
-    assertEquals("", Cache.actionbarFormat);
+    assertEquals("", Cache.statusBarFormat);
     assertEquals("in", Cache.messageEnter);
     assertEquals("out", Cache.messageLeave);
     assertEquals("tired", Cache.messageOutOfFocus);

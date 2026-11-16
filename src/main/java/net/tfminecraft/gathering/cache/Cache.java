@@ -14,7 +14,7 @@ public final class Cache {
     // Gathering mode
     public static int drainAmount = 1;
     public static int drainIntervalSeconds = 90;
-    public static String actionbarFormat = "&7Gathering &8· &e{mp} MP";
+    public static String statusBarFormat = "&7Gathering &8· &e{mp} MP";
     public static String messageEnter = "&7You begin searching your surroundings carefully.";
     public static String messageLeave = "&7You stop searching.";
     public static String messageOutOfFocus = "&7Your focus fades; you stop searching.";

@@ -12,8 +12,9 @@ worlds:
 mode:
   drain-amount: 1
   drain-interval-seconds: 90
-  # Shown every 2 seconds while gathering. {mp} = current Mental Points. Empty to disable.
-  actionbar: '&7Gathering &8· &e{mp} MP'
+  # Boss bar shown while gathering, filled to the share of max Mental Points.
+  # {mp} = current Mental Points. Empty to disable.
+  status-bar: '&7Gathering &8· &e{mp} MP'
   messages:
     enter: '&7You begin searching your surroundings carefully.'
     leave: '&7You stop searching.'

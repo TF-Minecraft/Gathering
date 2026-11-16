@@ -163,11 +163,14 @@ class IntegrationTest extends GatheringTestSupport {
     Player player = server.addPlayer();
     try (MockedStatic<RPCharacters> rp = mockStatic(RPCharacters.class)) {
       assertEquals(0, FocusBridge.points(player));
+      assertEquals(0, FocusBridge.max());
       assertFalse(FocusBridge.trySpend(player, 1));
       assertTrue(FocusBridge.trySpend(player, 0));
       FocusService focus = mock(FocusService.class);
       rp.when(RPCharacters::getFocusService).thenReturn(focus);
       when(focus.getPoints(player)).thenReturn(42);
+      when(focus.getMax()).thenReturn(150);
+      assertEquals(150, FocusBridge.max());
       when(focus.trySpend(player, 2)).thenReturn(true);
       assertEquals(42, FocusBridge.points(player));
       assertTrue(FocusBridge.trySpend(player, 2));

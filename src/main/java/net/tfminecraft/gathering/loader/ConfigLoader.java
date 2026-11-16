@@ -64,7 +64,7 @@ public class ConfigLoader {
 
         Cache.drainAmount = Math.max(0, config.getInt("mode.drain-amount", 1));
         Cache.drainIntervalSeconds = Math.max(1, config.getInt("mode.drain-interval-seconds", 90));
-        Cache.actionbarFormat = config.getString("mode.actionbar", "&7Gathering &8· &e{mp} MP");
+        Cache.statusBarFormat = config.getString("mode.status-bar", "&7Gathering &8· &e{mp} MP");
         Cache.messageEnter = config.getString("mode.messages.enter",
                 "&7You begin searching your surroundings carefully.");
         Cache.messageLeave = config.getString("mode.messages.leave", "&7You stop searching.");
