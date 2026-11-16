@@ -146,6 +146,14 @@ class ManagerTest extends GatheringTestSupport {
     SpotManager restored = new SpotManager();
     restored.loadFreshness();
     assertEquals(2.5, restored.depletion(key, now), 1e-6);
+    // A failed write keeps the state dirty, so a later save retries it.
+    Files.delete(temp.resolve("Data/chunk-cache.json"));
+    Files.createDirectory(temp.resolve("Data/chunk-cache.json"));
+    restored.recordHarvest(key, now);
+    restored.shutdown();
+    Files.delete(temp.resolve("Data/chunk-cache.json"));
+    restored.shutdown();
+    assertTrue(Files.isRegularFile(temp.resolve("Data/chunk-cache.json")));
     restored.clearFreshness("other");
     assertEquals(1, restored.getTrackedChunkCount());
     restored.clearFreshness(null);

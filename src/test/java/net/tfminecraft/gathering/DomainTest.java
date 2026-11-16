@@ -194,6 +194,9 @@ class DomainTest {
     assertEquals(2, bounded.spawnWeight);
     assertTrue(bounded.requiresProvince());
     assertTrue(bounded.acceptsProvince(7));
+    assertFalse(
+        new SpotTypeDefinition("u", null, null, null, null, null, 1, Set.of(-2), List.of())
+            .acceptsProvince(net.tfminecraft.gathering.utils.Provinces.UNKNOWN));
     assertFalse(bounded.acceptsProvince(8));
     SpotTypeDefinition nowhere =
         new SpotTypeDefinition("n", null, null, null, null, null, 1, Set.of(), List.of());

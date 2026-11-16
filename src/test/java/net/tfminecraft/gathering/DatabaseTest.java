@@ -19,8 +19,9 @@ class DatabaseTest extends GatheringTestSupport {
   void depletionRoundTripsAndSkipsInvalidEntries() throws Exception {
     assertTrue(ChunkCacheDatabase.load().depletion.isEmpty());
     ChunkKey first = new ChunkKey("world", 1, -2), second = new ChunkKey("other", 3, 4);
-    ChunkCacheDatabase.save(
-        Map.of(first, new ChunkFreshness.Entry(1.5, 100), second, new ChunkFreshness.Entry(.2, 7)));
+    assertTrue(
+        ChunkCacheDatabase.save(
+            Map.of(first, new ChunkFreshness.Entry(1.5, 100), second, new ChunkFreshness.Entry(.2, 7))));
     var loaded = ChunkCacheDatabase.parseDepletion(ChunkCacheDatabase.load());
     assertEquals(2, loaded.size());
     assertEquals(1.5, loaded.get(first).value);
@@ -53,7 +54,7 @@ class DatabaseTest extends GatheringTestSupport {
     Files.delete(temp.resolve("Data/chunk-cache.json"));
     Files.createDirectory(temp.resolve("Data/chunk-cache.json"));
     assertTrue(ChunkCacheDatabase.load().depletion.isEmpty());
-    assertDoesNotThrow(() -> ChunkCacheDatabase.save(Map.of()));
+    assertFalse(ChunkCacheDatabase.save(Map.of()));
   }
 
   @Test

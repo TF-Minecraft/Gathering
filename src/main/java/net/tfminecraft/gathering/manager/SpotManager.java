@@ -239,8 +239,7 @@ public final class SpotManager implements Listener {
 
     private void saveFreshness() {
         freshness.prune(System.currentTimeMillis());
-        ChunkCacheDatabase.save(freshness.entries());
-        cacheDirty = false;
+        if (ChunkCacheDatabase.save(freshness.entries())) cacheDirty = false;
     }
 
     private ChunkKey chunkKey(GatheringSpot spot) {

@@ -24,6 +24,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.gathering.Gathering;
+import net.tfminecraft.gathering.utils.Provinces;
 
 public class SpotTypeLoader {
 
@@ -80,7 +81,8 @@ public class SpotTypeLoader {
         }
 
         public boolean acceptsProvince(int provinceId) {
-            return provinces == null || provinces.contains(provinceId);
+            if (provinces == null) return true;
+            return provinceId != Provinces.UNKNOWN && provinces.contains(provinceId);
         }
 
         public boolean acceptsBiome(Biome biome) {

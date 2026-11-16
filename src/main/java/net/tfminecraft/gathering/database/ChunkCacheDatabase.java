@@ -58,7 +58,8 @@ public final class ChunkCacheDatabase {
         }
     }
 
-    public static void save(Map<ChunkKey, ChunkFreshness.Entry> entries) {
+    /** Returns false if the file could not be written, so the caller can retry later. */
+    public static boolean save(Map<ChunkKey, ChunkFreshness.Entry> entries) {
         CacheData data = new CacheData();
         for (Map.Entry<ChunkKey, ChunkFreshness.Entry> e : entries.entrySet()) {
             data.depletion.put(e.getKey().serialize(), new DepletionRecord(e.getValue().value, e.getValue().updatedMs));
@@ -68,8 +69,10 @@ public final class ChunkCacheDatabase {
         file.getParentFile().mkdirs();
         try (FileWriter writer = new FileWriter(file)) {
             GSON.toJson(data, writer);
+            return true;
         } catch (IOException ex) {
             Gathering.plugin.getLogger().warning("Failed to save chunk cache: " + ex.getMessage());
+            return false;
         }
     }
 
