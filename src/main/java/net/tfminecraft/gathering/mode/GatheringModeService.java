@@ -26,7 +26,8 @@ import net.tfminecraft.gathering.utils.FocusBridge;
 /**
  * Who is searching for gathering spots. Being in the mode costs Mental Points: one charge on entry and
  * one every {@link Cache#drainIntervalSeconds}. The mode ends only when the player turns it off or a
- * charge fails; quitting, reloads and shutdowns clear it without a refund. While it is on, a boss bar
+ * charge fails; quitting and plugin shutdown clear it without a refund, while a config reload keeps it.
+ * While it is on, a boss bar
  * shows the player's Mental Points (an action bar would be overwritten by the MMOCore HUD).
  */
 public final class GatheringModeService implements Listener {
