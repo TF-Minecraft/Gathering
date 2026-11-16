@@ -67,8 +67,10 @@ public final class ChunkCacheDatabase {
 
         File file = getFile();
         file.getParentFile().mkdirs();
+        // Serialise first so a failed write always surfaces as an IOException, never a JsonIOException.
+        String json = GSON.toJson(data);
         try (FileWriter writer = new FileWriter(file)) {
-            GSON.toJson(data, writer);
+            writer.write(json);
             return true;
         } catch (IOException ex) {
             Gathering.plugin.getLogger().warning("Failed to save chunk cache: " + ex.getMessage());
